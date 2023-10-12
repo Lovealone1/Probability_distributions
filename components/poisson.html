@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calculadora de distribución de Poisson</title>
+    <style>
+        /* Estilos para el contenedor principal */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+
+        /* Estilos para el título */
+        h1 {
+            margin-bottom: 20px;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+        }
+
+        /* Estilos para las etiquetas */
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* Estilos para los inputs y selects */
+        input{
+            width: 96%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        /* Estilos para el botón */
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #337ab7;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #286090;
+        }
+
+        /* Estilos para los resultados */
+        .resultados {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .probabilidad-label {
+            margin-right: 5px;
+        }
+
+        .probabilidad-value {
+            font-weight: normal;
+        }
+
+        /* Estilos para la gráfica */
+        #grafica {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calculadora de distribución de Poisson</h1>
+
+        <label for="tasa">Lambda[Λ]:</label>
+        <input type="number" step="0.01" min="0" id="tasa" name="tasa">
+
+        <label for="x">Valor X:</label>
+        <input type="number" step="1" min="0" id="x" name="x">
+
+        <label for="operador">Operador:</label>
+        <select id="operador" name="operador">
+            <option value="igual">P(X=x):</option>
+            <option value="menor">P(X<=x):</option>
+            <option value="mayor">P(X>=x):</option>
+        </select>
+
+        <button onclick="calcularPoisson()">Calcular</button>
+
+        <canvas id="grafica"></canvas>
+
+        <div class="resultados">
+            <label class="probabilidad-label">Probabilidad acumulada:</label>
+            <span class="probabilidad-value" id="probabilidad"></span><br>
+        </div>
+    </div>
+
+        <!-- Asegúrate de incluir la biblioteca math.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.4.1/math.min.js"></script>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+        <script>
+            var chart;  // Variable global para almacenar la instancia del gráfico
+
+            function limpiarGrafica() {
+                if (chart) {
+                    chart.destroy();
+                }
+            }
+
+            function calcularPoisson() {
+                limpiarGrafica();
+
+                var tasa = parseFloat(document.getElementById('tasa').value);
+                var x = parseInt(document.getElementById('x').value);
+                var operador = document.getElementById('operador').value;
+
+                // Calcular la probabilidad acumulada para la distribución de Poisson
+                var probabilidad;
+
+                if (operador === 'igual') {
+                    probabilidad = math.round(poissonProbability(tasa, x), 4);
+                } else if (operador === 'menor') {
+                    probabilidad = math.round(cumulativePoissonProbability(tasa, x), 4);
+                } else if (operador === 'mayor') {
+                    probabilidad = math.round(1 - cumulativePoissonProbability(tasa, x - 1), 4);
+                }
+
+                // Crear la gráfica
+                var data = [];
+                var labels = [];
+
+                for (var i = 0; i <= x * 2; i++) {
+                    labels.push(i);
+                    data.push(poissonProbability(tasa, i));
+                }
+
+                var ctx = document.getElementById('grafica').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Distribución de Poisson',
+                            data: data,
+                            backgroundColor: 'rgba(33, 150, 243, 0.5)',
+                            borderColor: 'rgba(33, 150, 243, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                scaleLabel: {
+                                    display: true,
+                                    labelString: 'Probabilidad'
+                                }
+                            }],
+                            xAxes: [{
+                                scaleLabel: {
+                                    display: true,
+                                    labelString: 'Número de ocurrencias'
+                                }
+                            }]
+                        },
+                        annotation: {
+                            annotations: [{
+                                type: 'box',
+                                xScaleID: 'x-axis-0',
+                                yScaleID: 'y-axis-0',
+                                xMin: x - 0.5,
+                                xMax: x + 0.5,
+                                yMin: 0,
+                                yMax: poissonProbability(tasa, x),
+                                backgroundColor: 'rgba(33, 150, 243, 0.3)',
+                                borderColor: 'transparent',
+                                borderSkipped: false,
+                                label: {
+                                    content: 'Área sombreada',
+                                    enabled: true,
+                                    position: 'top'
+                                }
+                            }]
+                        }
+                    }
+                });
+
+                document.getElementById('probabilidad').innerText = probabilidad.toFixed(4);
+            }
+
+            function factorial(n) {
+                if (n === 0 || n === 1) {
+                    return 1;
+                }
+                return n * factorial(n - 1);
+            }
+
+            function poissonProbability(tasa, x) {
+                return (Math.pow(Math.E, -tasa) * Math.pow(tasa, x)) / factorial(x);
+            }
+
+            function cumulativePoissonProbability(tasa, k) {
+                var cumulativeProbability = 0;
+                for (var i = 0; i <= k; i++) {
+                    cumulativeProbability += poissonProbability(tasa, i);
+                }
+                return cumulativeProbability;
+            }
+        </script>
+    </body>
+    </html>

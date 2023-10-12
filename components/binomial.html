@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calculadora de distribución binomial</title>
+    <style>
+        /* Estilos CSS para la distribución binomial */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        input{
+            width: 96%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #337ab7;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #286090;
+        }
+
+        .resultados {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .probabilidad-label {
+            margin-right: 5px;
+        }
+
+        .probabilidad-value {
+            font-weight: normal;
+        }
+
+        #grafica {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calculadora de distribución binomial</h1>
+
+        <label for="n">Número de ensayos [N]:</label>
+        <input type="number" id="n" name="n">
+
+        <label for="p">Probabilidad de éxito [P]:</label>
+        <input type="number" step="0.01" min="0" max="1" id="p" name="p">
+
+        <label for="x">Número de éxitos [X]:</label>
+        <input type="number" id="x" name="x">
+
+        <label for="cola">Operador:</label>
+        <select id="cola" name="cola">
+            <option value="igual">P(X=x):</option>
+            <option value="izquierda">P(X<=x):</option>
+            <option value="derecha">P(X>=x):</option>  
+        </select>
+
+        <button onclick="calcularBinomial()">Calcular</button>
+
+        <canvas id="grafica"></canvas>
+
+        <div class="resultados">
+            <label>Probabilidad acumulada:</label>
+            <span id="probabilidad"></span><br>
+        </div>
+    </div>
+    <!-- Asegúrate de incluir la biblioteca math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.4.1/math.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+    <script>
+        var chart;  // Variable global para almacenar la instancia del gráfico
+
+        function limpiarGrafica() {
+            if (chart) {
+                chart.destroy();
+            }
+        }
+
+        function calcularBinomial() {
+            limpiarGrafica();
+
+            var n = parseInt(document.getElementById('n').value);
+            var p = parseFloat(document.getElementById('p').value);
+            var x = parseInt(document.getElementById('x').value);
+            var cola = document.getElementById('cola').value;
+
+            // Calcular la probabilidad acumulada para la distribución binomial
+            var probabilidad;
+            if (cola === 'izquierda') {
+                probabilidad = math.round(cumulativeBinomialProbability(x, n, p), 4);
+            } else if (cola === 'derecha') {
+                probabilidad = math.round(1 - cumulativeBinomialProbability(x - 1, n, p), 4);
+            } else if (cola === 'igual') {
+                probabilidad = binomialProbability(x, n, p);
+            }
+
+            // Crear la gráfica
+            var labels = [];
+            var data = [];
+            for (var i = 0; i <= n; i++) {
+                labels.push(i);
+                data.push(binomialProbability(i, n, p));
+            }
+
+            var ctx = document.getElementById('grafica').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Distribución Binomial',
+                        data: data,
+                        backgroundColor: 'rgba(33, 150, 243, 0.5)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        yAxes: [{
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Probabilidad'
+                            }
+                        }],
+                        xAxes: [{
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Número de éxitos'
+                            }
+                        }]
+                    },
+                    annotation: {
+                        annotations: [{
+                            type: 'box',
+                            xScaleID: 'x-axis-0',
+                            yScaleID: 'y-axis-0',
+                            xMin: (cola === 'igual') ? x - 0.5 : x,
+                            xMax: (cola === 'igual') ? x + 0.5 : x,
+                            yMin: 0,
+                            yMax: probabilidad,
+                            backgroundColor: 'rgba(200, 150, 243, 0.3)',
+                            borderColor: 'transparent',
+                            borderSkipped: false,
+                            label: {
+                                content: 'Área sombreada',
+                                enabled: true,
+                                position: 'top'
+                            }
+                        }]
+                    }
+                }
+            });
+
+            document.getElementById('probabilidad').innerText = probabilidad.toFixed(4);
+        }
+
+        function binomialCoefficient(n, k) {
+            if (Number.isInteger(n) && Number.isInteger(k) && n >= 0 && k >= 0) {
+                return math.combinations(n, k);
+            } else {
+                return 0;
+            }
+        }
+
+        function binomialProbability(x, n, p) {
+            return binomialCoefficient(n, x) * Math.pow(p, x) * Math.pow(1 - p, n - x);
+        }
+
+        function cumulativeBinomialProbability(x, n, p) {
+            var cumulativeProbability = 0;
+            for (var i = 0; i <= x; i++) {
+                cumulativeProbability += binomialProbability(i, n, p);
+            }
+            return cumulativeProbability;
+        }
+    </script>
+</body>
+</html>

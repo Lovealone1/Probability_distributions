@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calculadora de distribución normal</title>
+    <style>
+        /* Estilos CSS para la distribución normal */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 96%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #337ab7;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #286090;
+        }
+
+        .resultados {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .probabilidad-label {
+            margin-right: 5px;
+        }
+
+        .probabilidad-value {
+            font-weight: normal;
+        }
+
+        #grafica {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calculadora de distribución normal</h1>
+
+        <label for="media">Media [μ]:</label>
+        <input type="number" id="media" name="media">
+
+        <label for="desviacion">Desviación estándar [σ]:</label>
+        <input type="number" id="desviacion" name="desviacion">
+
+        <label for="x">Valor [X]:</label>
+        <input type="number" id="x" name="x">
+
+        <label for="cola">Operador:</label>
+        <select id="cola" name="cola">
+            <option value="izquierda">P(X<=x):</option>
+            <option value="derecha">P(X>=x):</option>
+        </select>
+
+        <button onclick="calcularNormal()">Calcular</button>
+
+        <canvas id="grafica"></canvas>
+
+        <div class="resultados">
+            <label>Probabilidad acumulada:</label>
+            <span id="probabilidad"></span><br>
+        </div>
+    </div>
+    <!-- Asegúrate de incluir la biblioteca math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.4.1/math.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.min.js"></script>
+    <script>
+        var chart;  // Variable global para almacenar la instancia del gráfico
+
+        function limpiarGrafica() {
+            if (chart) {
+                chart.destroy();
+            }
+        }
+
+        function calcularNormal() {
+            limpiarGrafica();
+
+            var media = parseFloat(document.getElementById('media').value);
+            var desviacion = parseFloat(document.getElementById('desviacion').value);
+            var x = parseFloat(document.getElementById('x').value);
+            var cola = document.getElementById('cola').value;
+
+            // Calcular la probabilidad acumulada utilizando math.js
+            var probabilidad = 0;
+            var data = [];
+            var minimo = media - 4 * desviacion;
+            var maximo = media + 4 * desviacion;
+
+            for (var i = minimo; i <= maximo; i += 0.1) {
+                data.push({
+                    x: i.toFixed(2),
+                    y: (1 / (desviacion * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((i - media) / desviacion, 2))
+                });
+            }
+
+            // Calcular la probabilidad acumulada
+            if (cola === 'izquierda') {
+                probabilidad = math.round(0.5 * (1 + math.erf((x - media) / (desviacion * Math.sqrt(2)))), 4);
+            } else if (cola === 'derecha') {
+                probabilidad = math.round(1 - 0.5 * (1 + math.erf((x - media) / (desviacion * Math.sqrt(2)))), 4);
+            }
+
+            // Crear la gráfica
+            var labels = [];
+            for (var i = minimo; i <= maximo; i += 0.1) {
+                labels.push(i.toFixed(2));
+            }
+
+            var ctx = document.getElementById('grafica').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Distribución Normal',
+                        data: data,
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        yAxes: [{
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Densidad de probabilidad'
+                            }
+                        }],
+                        xAxes: [{
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'x'
+                            }
+                        }]
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
+                    }
+                }
+            });
+
+            // Sombrear el área correspondiente a la probabilidad acumulada
+            var xPosition = (x - minimo) / 0.1;
+            var yValue = (1 / (desviacion * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - media) / desviacion, 2));
+            var areaData = [];
+
+            if (cola === 'izquierda') {
+                for (var i = minimo; i <= x; i += 0.1) {
+                    areaData.push({
+                        x: i.toFixed(2),
+                        y: (1 / (desviacion * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((i - media) / desviacion, 2))
+                    });
+                }
+                areaData.push({
+                    x: x.toFixed(2),
+                    y: yValue
+                });
+            } else if (cola === 'derecha') {
+                for (var i = x; i <= maximo; i += 0.1) {
+                    areaData.push({
+                        x: i.toFixed(2),
+                        y: (1 / (desviacion * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((i - media) / desviacion, 2))
+                    });
+                }
+                areaData.push({
+                    x: maximo.toFixed(2),
+                    y: 0
+                });
+            }
+
+            chart.data.datasets.push({
+                label: 'Área sombreada',
+                data: areaData,
+                backgroundColor: 'rgba(33, 150, 243, 0.3)', // Color del área sombreada
+                borderColor: 'rgba(0, 0, 0, 0)',
+                borderWidth: 1
+            });
+
+            chart.update();
+
+            document.getElementById('probabilidad').innerText = probabilidad.toFixed(4);
+        }
+    </script>
+</body>
+</html>
